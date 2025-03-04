@@ -46,22 +46,43 @@ class NeuralNetwork{
 
     // Forward propagation function
     Matrix *predict(Matrix *input){
+        Matrix *temp_input = new Matrix(*input);
         for(int i=0; i<n_layers; i++){
-            Matrix *frac1 = ((*layers[i]->weights) * (*input));
+            Matrix *frac1 = ((*layers[i]->weights) * (*temp_input));
             Matrix *temp = act(layers[i]->activation, *frac1 + (*layers[i]->bias));
             delete frac1;
-            delete input;
-            input = temp;
+            delete temp_input;
+            temp_input = temp;
         };
 
-        return input;
+        return temp_input;
     };
 
     // Backward propagation function
     void train(Matrix *input, Matrix *target, int epochs=100, float learning_rate=0.01){
         for(int epoch = 0; epoch < epochs; epoch++){
             Matrix *A = predict(input);
-            Matrix *error = *target - *A;
+
+            // Compute least squares error
+            Matrix *errVector = *target - *A;
+            float error = 0;
+            for(int i=0; i<errVector->n*errVector->m; i++) error += pow(errVector->matrix[i],2);
+            error /= errVector->n*errVector->m;
+
+            Matrix *dA = (2.0/(A->n*A->m)) * (*errVector);
+
+            // Backward propagation
+            for(int i=n_layers-1; i>=0; i--){
+                Matrix *dY = derivative_activation(layers[i]->activation, A);
+                Matrix *gamma = Matrix::hadamard(*dA, *dY);
+                Matrix *dW = *gamma * (*Matrix::transpose(*A));
+                Matrix *dB = gamma;
+
+                // Update weights and bias
+                layers[i]->weights = *layers[i]->weights + *(learning_rate * *dW);
+                layers[i]->bias = *layers[i]->bias + *(learning_rate * *dB);
+            }
+
         }
     };
 
@@ -98,13 +119,27 @@ class NeuralNetwork{
     };
 
     // Derivative of activation function computation
-    float dfns(std::string activation, float x){
-        if(activation == LINEAR) return 1;
-        if(activation == TANH) return 1 - pow(tanh(x),2);
-        if(activation == SIGMOID) return fns(SIGMOID, x) * (1 - fns(SIGMOID, x));
-        if(activation == RELU) return (x > 0) ? 1 : 0;
-        return 0;
-    };
+    Matrix* derivative_activation(std::string activation, Matrix *A) {
+        Matrix *D = new Matrix(A->n, A->m);
+        
+        for (int i = 0; i < A->n * A->m; i++) {
+            if (activation == SIGMOID) {
+                float sig = 1 / (1 + exp(-A->matrix[i]));
+                D->matrix[i] = sig * (1 - sig);
+            } 
+            else if (activation == TANH) {
+                D->matrix[i] = 1 - pow(tanh(A->matrix[i]), 2);
+            } 
+            else if (activation == RELU) {
+                D->matrix[i] = (A->matrix[i] > 0) ? 1 : 0;
+            } 
+            else { // Default case (linear activation)
+                D->matrix[i] = 1;
+            }
+        }
+        
+        return D;
+    }    
 
     // Apply activation function to matrix
     Matrix *act(std::string activation, Matrix *x){
