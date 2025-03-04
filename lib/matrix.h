@@ -19,6 +19,8 @@ public:
     // Methods
     Matrix *get_row(int i); // Retrieve a row from the matrix
     static Matrix* randomMatrix(int n_s, int m_s, float min_val = 0.0, float max_val = 1.0);
+    static Matrix* transpose(Matrix& matrix); // Transpose the matrix
+    static Matrix* hadamard(Matrix& a, Matrix& b); // Hadamard product of two matrices
 
     // Overloaded operators
     Matrix* operator*(const Matrix& other); // Matrix multiplication

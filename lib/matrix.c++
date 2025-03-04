@@ -40,6 +40,28 @@ Matrix* Matrix::randomMatrix(int n_s, int m_s, float min_val, float max_val) {
     return result;
 }
 
+// Transpose the matrix
+Matrix* Matrix::transpose(Matrix& matrix) {
+    Matrix* A = new Matrix(matrix.m, matrix.n);
+    for (int i = 0; i < matrix.n; i++) {
+        for (int j = 0; j < matrix.m; j++) {
+            A->matrix[j * A->m + i] = matrix.matrix[i * matrix.m + j];
+        }
+    }
+    return A;
+}
+
+// Hadamard product of two matrices
+Matrix* Matrix::hadamard(Matrix& a, Matrix& b) {
+    if (a.n != b.n || a.m != b.m) throw std::invalid_argument("Incompatible dimensions for Hadamard product.");
+
+    Matrix* A = new Matrix(a.n, a.m);
+    for (int i = 0; i < a.n * a.m; i++) {
+        A->matrix[i] = a.matrix[i] * b.matrix[i];
+    }
+    return A;
+}
+
 // Matrix multiplication
 Matrix* Matrix::operator*(const Matrix& other) {
     if (m != other.n){

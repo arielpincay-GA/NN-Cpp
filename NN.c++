@@ -45,9 +45,7 @@ class NeuralNetwork{
     };
 
     // Forward propagation function
-    Matrix *predict(Matrix *input, bool normlzt = false){
-        if(normlzt) normalization(input, n_inputs);
-
+    Matrix *predict(Matrix *input){
         for(int i=0; i<n_layers; i++){
             Matrix *frac1 = ((*layers[i]->weights) * (*input));
             Matrix *temp = act(layers[i]->activation, *frac1 + (*layers[i]->bias));
@@ -57,6 +55,14 @@ class NeuralNetwork{
         };
 
         return input;
+    };
+
+    // Backward propagation function
+    void train(Matrix *input, Matrix *target, int epochs=100, float learning_rate=0.01){
+        for(int epoch = 0; epoch < epochs; epoch++){
+            Matrix *A = predict(input);
+            Matrix *error = *target - *A;
+        }
     };
 
     // Destructor to free memory
@@ -69,6 +75,18 @@ class NeuralNetwork{
         delete[] layers;
     };
 
+    // Normalize input matrix
+    static void normalization(Matrix *input, int n){
+        float mean = 0;
+        float dstd = 0;
+        for(int i=0; i<n; i++) mean += input->matrix[i];
+        mean /= n;
+        for(int i=0; i<n; i++) dstd += pow((input->matrix[i] - mean),2);
+        dstd = sqrt(dstd/n);
+        for(int i=0; i<n; i++) input->matrix[i] = (input->matrix[i] - mean)/dstd;
+    }
+
+
     private:
     // Activation function computation
     float fns(std::string activation, float x){
@@ -76,6 +94,15 @@ class NeuralNetwork{
         if(activation == TANH) return tanh(x);
         if(activation == SIGMOID) return 1 / (1 + exp(-x));
         if(activation == RELU) return (x > 0) ? x : 0;
+        return 0;
+    };
+
+    // Derivative of activation function computation
+    float dfns(std::string activation, float x){
+        if(activation == LINEAR) return 1;
+        if(activation == TANH) return 1 - pow(tanh(x),2);
+        if(activation == SIGMOID) return fns(SIGMOID, x) * (1 - fns(SIGMOID, x));
+        if(activation == RELU) return (x > 0) ? 1 : 0;
         return 0;
     };
 
@@ -94,18 +121,6 @@ class NeuralNetwork{
 
         return layer;
     };
-
-    // Normalize input matrix
-    void normalization(Matrix *input, int n){
-        float mean = 0;
-        float dstd = 0;
-        for(int i=0; i<n; i++) mean += input->matrix[i];
-        mean /= n;
-        for(int i=0; i<n; i++) dstd += pow((input->matrix[i] - mean),2);
-        dstd = sqrt(dstd/n);
-        for(int i=0; i<n; i++) input->matrix[i] = (input->matrix[i] - mean)/dstd;
-    }
-
 };
 
 int main(){
@@ -121,8 +136,10 @@ int main(){
     int N_neurons[] = {16, 32, 64}; // Number of neurons per hidden layer
     int N_layers = 3;           // Number of layers
 
+    NeuralNetwork::normalization(Xor_data, 8); // Normalize input data
+
     std::unique_ptr<NeuralNetwork> NN = std::make_unique<NeuralNetwork>(N_layers, N_neurons, 2, 1, SIGMOID, SIGMOID);
-    Matrix *output = NN->predict(Input, true);
+    Matrix *output = NN->predict(Input);
     std::cout << "Output: " << *output->matrix << '\n';
 
     return 0;
