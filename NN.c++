@@ -27,11 +27,15 @@ class NeuralNetwork{
     int *n_neurons;       // Number of neurons per hidden layer
     int n_inputs;        // Number of input neurons
     int n_output;        // Number of output neurons
+    Matrix **act_values;      // Activation values cached per layer
 
     // Constructor to initialize the neural network
     NeuralNetwork(int N_layers, int *N_neurons, int N_inputs, int N_output, std::string F_intern, std::string F_extern, float min=-1, float max=1): n_layers(N_layers), n_inputs(N_inputs), n_output(N_output), n_neurons(N_neurons), f_intern(F_intern), f_extern(F_extern){
         //Create layers
         layers = new Layer*[n_layers+1];
+
+        //Activation values array
+        act_values = new Matrix*[n_layers+1];
 
         layers[0] = createLayer(f_intern, n_neurons[0], n_inputs, min, max);
         int prev_neurons = n_neurons[0];
@@ -47,12 +51,14 @@ class NeuralNetwork{
     // Forward propagation function
     Matrix *predict(Matrix *input){
         Matrix *temp_input = new Matrix(*input);
+        act_values[0] = temp_input; // Cache input values
         for(int i=0; i<n_layers; i++){
             Matrix *frac1 = ((*layers[i]->weights) * (*temp_input));
             Matrix *temp = act(layers[i]->activation, *frac1 + (*layers[i]->bias));
             delete frac1;
             delete temp_input;
             temp_input = temp;
+            act_values[i+1] = temp_input; // Cache activation values
         };
 
         return temp_input;
@@ -61,29 +67,29 @@ class NeuralNetwork{
     // Backward propagation function
     void train(Matrix *input, Matrix *target, int epochs=100, float learning_rate=0.01){
         for(int epoch = 0; epoch < epochs; epoch++){
-            Matrix *A = predict(input);
+            Matrix *Y = predict(input);
 
             // Compute least squares error
-            Matrix *errVector = *target - *A;
+            Matrix *errVector = *target - *Y;
             float error = 0;
             for(int i=0; i<errVector->n*errVector->m; i++) error += pow(errVector->matrix[i],2);
             error /= errVector->n*errVector->m;
 
-            Matrix *dA = (2.0/(A->n*A->m)) * (*errVector);
+            for(int i=n_layers; i>=0; i--){
+                // Compute gradients
+                Matrix *dE = (2.0/errVector->n) * (*errVector);
+                Matrix *dY = derivative_activation(layers[i]->activation, Y);
+                Matrix *gamma = *dY * *dE;
+                Matrix *dW = *Matrix::transpose(*Y) * *gamma;
 
-            // Backward propagation
-            for(int i=n_layers-1; i>=0; i--){
-                Matrix *dY = derivative_activation(layers[i]->activation, A);
-                Matrix *gamma = Matrix::hadamard(*dA, *dY);
-                Matrix *dW = *gamma * (*Matrix::transpose(*A));
-                Matrix *dB = gamma;
+                // Apply corrections
+                layers[i]->weights = *layers[i]->weights + *(*dW * learning_rate);
+                layers[i]->bias = *layers[i]->bias + *(*gamma * learning_rate);
 
-                // Update weights and bias
-                layers[i]->weights = *layers[i]->weights + *(learning_rate * *dW);
-                layers[i]->bias = *layers[i]->bias + *(learning_rate * *dB);
+                // Compute Y for next layer
             }
-
         }
+        
     };
 
     // Destructor to free memory
@@ -174,6 +180,7 @@ int main(){
     NeuralNetwork::normalization(Xor_data, 8); // Normalize input data
 
     std::unique_ptr<NeuralNetwork> NN = std::make_unique<NeuralNetwork>(N_layers, N_neurons, 2, 1, SIGMOID, SIGMOID);
+    NN->train(Xor_data, Xor_labels, 1000, 0.01);
     Matrix *output = NN->predict(Input);
     std::cout << "Output: " << *output->matrix << '\n';
 
