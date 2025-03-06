@@ -5,7 +5,9 @@
 // Constructor that copies data from an array
 Matrix::Matrix(float* matrix_rw, int n_s, int m_s) : n(n_s), m(m_s) {
     matrix = new float[n * m];
-    for (int i = 0; i < n * m; i++) matrix[i] = matrix_rw[i];
+    for (int i = 0; i < n * m; i++){
+        matrix[i] = matrix_rw[i];
+    }
 }
 
 // Constructor for an empty matrix
